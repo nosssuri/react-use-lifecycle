@@ -6,6 +6,7 @@ import type { LifecycleOptions } from './types';
  * with powerful debugging capabilities.
  *
  * Phase 1: Implements onMount and onUnmount functionality
+ * Phase 2: Implements watch functionality with dependency array management
  *
  * @param options - Configuration object with lifecycle callbacks
  *
@@ -18,12 +19,19 @@ import type { LifecycleOptions } from './types';
  *       console.log('Component unmounting');
  *     };
  *   },
+ *   watch: {
+ *     target: [count, name],
+ *     handler: (values, prevValues) => {
+ *       console.log('Values changed:', values);
+ *     },
+ *     immediate: true,
+ *   },
  *   debug: true,
  * });
  * ```
  */
 export function useLifecycle(options: LifecycleOptions): void {
-  const { onMount, debug } = options;
+  const { onMount, watch, debug } = options;
   const debugEnabled = useRef(false);
   const debugLabel = useRef<string | undefined>();
   const debugDetailed = useRef(false);
@@ -37,6 +45,7 @@ export function useLifecycle(options: LifecycleOptions): void {
     }
   }
 
+  // Phase 1: Handle onMount and onUnmount
   useEffect(() => {
     if (debugEnabled.current) {
       const label = debugLabel.current ? ` [${debugLabel.current}]` : '';
@@ -78,4 +87,84 @@ export function useLifecycle(options: LifecycleOptions): void {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Phase 2: Handle watch functionality
+  if (watch) {
+    const prevValuesRef = useRef<any[] | undefined>();
+    const isInitialRef = useRef(true);
+
+    useEffect(() => {
+      const { target, handler, immediate } = watch;
+      const currentValues = target;
+
+      // Check if any value has changed using Object.is
+      const hasChanged =
+        prevValuesRef.current === undefined ||
+        currentValues.some((value, index) => !Object.is(value, prevValuesRef.current?.[index]));
+
+      // Handle immediate execution on mount
+      if (immediate && isInitialRef.current) {
+        if (debugEnabled.current) {
+          const label = debugLabel.current ? ` [${debugLabel.current}]` : '';
+          console.group(`🔄 useLifecycle Watch (immediate)${label}`);
+          console.log('Watch event: IMMEDIATE EXECUTION');
+          if (debugDetailed.current) {
+            console.log('Current values:', currentValues);
+            console.log('Previous values:', undefined);
+          }
+        }
+
+        handler(currentValues, undefined);
+
+        if (debugEnabled.current) {
+          console.groupEnd();
+        }
+
+        isInitialRef.current = false;
+        prevValuesRef.current = [...currentValues];
+      } else if (hasChanged && !isInitialRef.current) {
+        // Handle change detection
+        if (debugEnabled.current) {
+          const label = debugLabel.current ? ` [${debugLabel.current}]` : '';
+          console.group(`🔄 useLifecycle Watch${label}`);
+          console.log('Change detected');
+          if (debugDetailed.current) {
+            console.log('Current values:', currentValues);
+            console.log('Previous values:', prevValuesRef.current);
+            // Log changed indices
+            const changedIndices = currentValues
+              .map((value, index) => (!Object.is(value, prevValuesRef.current?.[index]) ? index : -1))
+              .filter(index => index !== -1);
+            if (changedIndices.length > 0) {
+              console.log('Changed indices:', changedIndices);
+              changedIndices.forEach(index => {
+                console.log(
+                  `  [${index}]: ${JSON.stringify(prevValuesRef.current?.[index])} -> ${JSON.stringify(
+                    currentValues[index]
+                  )}`
+                );
+              });
+            }
+          }
+        }
+
+        handler(currentValues, prevValuesRef.current);
+
+        if (debugEnabled.current) {
+          console.groupEnd();
+        }
+
+        prevValuesRef.current = [...currentValues];
+      } else if (!isInitialRef.current) {
+        // Mark as initialized after first run (even if no change)
+        isInitialRef.current = false;
+      }
+
+      // Mark as initialized
+      if (isInitialRef.current && !immediate) {
+        isInitialRef.current = false;
+        prevValuesRef.current = [...currentValues];
+      }
+    }, watch.target); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 }

@@ -110,3 +110,200 @@ describe('useLifecycle - Phase 1: onMount & onUnmount', () => {
     logSpy.mockRestore();
   });
 });
+
+describe('useLifecycle - Phase 2: watch & dependency array management', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('watchが発火する', () => {
+    const handler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ count }: { count: number }) =>
+        useLifecycle({
+          watch: {
+            target: [count],
+            handler
+          }
+        }),
+      { initialProps: { count: 0 } }
+    );
+
+    // 初回マウント時は実行されない（immediate: falseがデフォルト）
+    expect(handler).not.toHaveBeenCalled();
+
+    // 値が変わったときに実行される
+    rerender({ count: 1 });
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith([1], [0]);
+
+    unmount();
+  });
+
+  it('複数のwatch値を監視', () => {
+    const handler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ count, name }: { count: number; name: string }) =>
+        useLifecycle({
+          watch: {
+            target: [count, name],
+            handler
+          }
+        }),
+      { initialProps: { count: 0, name: 'initial' } }
+    );
+
+    expect(handler).not.toHaveBeenCalled();
+
+    // countが変わったときに発火
+    rerender({ count: 1, name: 'initial' });
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith([1, 'initial'], [0, 'initial']);
+
+    handler.mockClear();
+
+    // nameが変わったときに発火
+    rerender({ count: 1, name: 'updated' });
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith([1, 'updated'], [1, 'initial']);
+
+    unmount();
+  });
+
+  it('immediate: trueで初回実行', () => {
+    const handler = vi.fn();
+    const { unmount } = renderHook(
+      ({ count }: { count: number }) =>
+        useLifecycle({
+          watch: {
+            target: [count],
+            handler,
+            immediate: true
+          }
+        }),
+      { initialProps: { count: 0 } }
+    );
+
+    // マウント時に即座に実行される
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith([0], undefined);
+
+    unmount();
+  });
+
+  it('immediate: false（デフォルト）で初回実行されない', () => {
+    const handler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ count }: { count: number }) =>
+        useLifecycle({
+          watch: {
+            target: [count],
+            handler,
+            immediate: false
+          }
+        }),
+      { initialProps: { count: 0 } }
+    );
+
+    // マウント時は実行されない
+    expect(handler).not.toHaveBeenCalled();
+
+    // 値が変わったときのみ実行
+    rerender({ count: 1 });
+    expect(handler).toHaveBeenCalledOnce();
+
+    unmount();
+  });
+
+  it('前回値と現在値が正しく渡される', () => {
+    const handler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ count }: { count: number }) =>
+        useLifecycle({
+          watch: {
+            target: [count],
+            handler
+          }
+        }),
+      { initialProps: { count: 0 } }
+    );
+
+    // 初回は実行されない
+    expect(handler).not.toHaveBeenCalled();
+
+    // 1回目の変更
+    rerender({ count: 1 });
+    expect(handler).toHaveBeenNthCalledWith(1, [1], [0]);
+
+    // 2回目の変更
+    rerender({ count: 2 });
+    expect(handler).toHaveBeenNthCalledWith(2, [2], [1]);
+
+    // 3回目の変更
+    rerender({ count: 5 });
+    expect(handler).toHaveBeenNthCalledWith(3, [5], [2]);
+
+    expect(handler).toHaveBeenCalledTimes(3);
+
+    unmount();
+  });
+
+  it('複数回のwatch実行', () => {
+    const handler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ value }: { value: number }) =>
+        useLifecycle({
+          watch: {
+            target: [value],
+            handler
+          }
+        }),
+      { initialProps: { value: 0 } }
+    );
+
+    // 複数回の変更をテスト
+    rerender({ value: 1 });
+    rerender({ value: 2 });
+    rerender({ value: 3 });
+    rerender({ value: 4 });
+
+    expect(handler).toHaveBeenCalledTimes(4);
+    expect(handler).toHaveBeenNthCalledWith(1, [1], [0]);
+    expect(handler).toHaveBeenNthCalledWith(2, [2], [1]);
+    expect(handler).toHaveBeenNthCalledWith(3, [3], [2]);
+    expect(handler).toHaveBeenNthCalledWith(4, [4], [3]);
+
+    unmount();
+  });
+
+  it('watchとonMountを同時に使用', () => {
+    const onMountCallback = vi.fn();
+    const watchHandler = vi.fn();
+    const { rerender, unmount } = renderHook(
+      ({ count }: { count: number }) =>
+        useLifecycle({
+          onMount: onMountCallback,
+          watch: {
+            target: [count],
+            handler: watchHandler
+          }
+        }),
+      { initialProps: { count: 0 } }
+    );
+
+    // onMountは実行されて、watchハンドラは実行されない
+    expect(onMountCallback).toHaveBeenCalledOnce();
+    expect(watchHandler).not.toHaveBeenCalled();
+
+    // 値が変わるとwatchハンドラが実行される
+    rerender({ count: 1 });
+    expect(onMountCallback).toHaveBeenCalledOnce();
+    expect(watchHandler).toHaveBeenCalledOnce();
+
+    unmount();
+  });
+});
