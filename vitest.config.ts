@@ -7,7 +7,7 @@ export default defineConfig({
     setupFiles: [],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'coverage-final.json'],
+      reporter: ['text', 'json'],
       exclude: [
         'node_modules/',
         'dist/',
