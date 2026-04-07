@@ -1,0 +1,9 @@
+src
+examples
+.local
+.git
+.gitignore
+tsconfig.json
+*.md
+.DS_Store
+node_modules

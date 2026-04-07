@@ -1,0 +1,42 @@
+{
+  "name": "react-use-lifecycle",
+  "version": "0.1.0",
+  "description": "A structured lifecycle hook for React with Vue-style syntax and powerful debugging capabilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "lifecycle",
+    "useeffect",
+    "debugging",
+    "typescript"
+  ],
+  "author": "nosssuri",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nosssuri/react-use-lifecycle"
+  },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "@types/react": "^18.3.28",
+    "@vitest/ui": "^1.0.0",
+    "happy-dom": "^12.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.0"
+  }
+}
